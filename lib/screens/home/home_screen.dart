@@ -123,7 +123,7 @@ class HomeScreen extends StatelessWidget {
           const Icon(Icons.hotel, size: 80, color: Colors.blue),
           const SizedBox(height: 24),
           const Text(
-            'Chào mừng đến với Hotel App',
+            'Chào mừng đến với PHHotel',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 48),
