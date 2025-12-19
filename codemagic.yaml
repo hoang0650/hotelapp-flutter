@@ -1,0 +1,177 @@
+workflows:
+  hotelapp-android-debug:
+    name: Hotel App - Android Debug (No Signing Required)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+      vars:
+        PACKAGE_NAME: "com.hotelapp.mobile"
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Flutter build info
+        script: |
+          flutter --version
+          flutter doctor -v
+      - name: Build Android APK (Debug)
+        script: |
+          flutter build apk --debug
+          echo "Debug APK build completed"
+          ls -la build/app/outputs/flutter-apk/
+          echo "APK file:"
+          find build/app/outputs/flutter-apk -name "*.apk" -type f
+    artifacts:
+      - build/app/outputs/flutter-apk/app-debug.apk
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
+
+  hotelapp-android-ios:
+    name: Hotel App - Android & iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials
+      vars:
+        APP_ID: "com.hotelapp.mobile"
+        PACKAGE_NAME: "com.hotelapp.mobile"
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install && cd ..
+      - name: Flutter build info
+        script: |
+          flutter --version
+          flutter doctor -v
+      - name: Build Android APK
+        script: |
+          flutter build apk --release
+          echo "APK build completed"
+          ls -la build/app/outputs/flutter-apk/
+      - name: Build Android App Bundle
+        script: |
+          flutter build appbundle --release
+          echo "AAB build completed"
+          ls -la build/app/outputs/bundle/release/
+      - name: Build iOS
+        script: |
+          flutter build ipa --release
+          echo "IPA build completed"
+          ls -la build/ios/ipa/
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+      - build/ios/ipa/*.ipa
+      - build/app/outputs/**/mapping.txt
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
+
+  hotelapp-android:
+    name: Hotel App - Android
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+      groups:
+        - keystore_credentials
+      vars:
+        PACKAGE_NAME: "com.hotelapp.mobile"
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Flutter build info
+        script: |
+          flutter --version
+          flutter doctor -v
+      - name: Build Android APK
+        script: |
+          flutter build apk --release
+          echo "APK build completed"
+          ls -la build/app/outputs/flutter-apk/
+      - name: Build Android App Bundle
+        script: |
+          flutter build appbundle --release
+          echo "AAB build completed"
+          ls -la build/app/outputs/bundle/release/
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+      - build/app/outputs/bundle/release/*.aab
+      - build/app/outputs/**/mapping.txt
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: alpha
+        submit_as_draft: false
+
+  hotelapp-ios:
+    name: Hotel App - iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m1
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials
+      vars:
+        APP_ID: "com.hotelapp.mobile"
+    scripts:
+      - name: Get Flutter dependencies
+        script: |
+          flutter pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install && cd ..
+      - name: Flutter build info
+        script: |
+          flutter --version
+          flutter doctor -v
+      - name: Build iOS
+        script: |
+          flutter build ipa --release
+          echo "IPA build completed"
+          ls -la build/ios/ipa/
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: false
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        beta_groups:
+          - group name 1
+          - group name 2
+
