@@ -46,6 +46,8 @@ workflows:
       vars:
         APP_ID: "com.hotelapp.mobile"
         PACKAGE_NAME: "com.hotelapp.mobile"
+    integrations:
+      app_store_connect: codemagic
     scripts:
       - name: Get Flutter dependencies
         script: |
@@ -142,6 +144,8 @@ workflows:
         - app_store_credentials
       vars:
         APP_ID: "com.hotelapp.mobile"
+    integrations:
+      app_store_connect: codemagic
     scripts:
       - name: Get Flutter dependencies
         script: |
@@ -171,7 +175,4 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: false
-        beta_groups:
-          - group name 1
-          - group name 2
 
