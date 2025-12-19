@@ -150,7 +150,7 @@ Nếu cần thay đổi, chỉnh sửa file này.
 - **fl_chart**: Biểu đồ
 - **table_calendar**: Lịch
 - **image_picker**: Chọn ảnh
-- **qr_code_scanner**: Quét QR code
+- **mobile_scanner**: Quét QR code (thay thế qr_code_scanner)
 - **camera**: Camera
 
 ## Phát triển tiếp
