@@ -1,6 +1,7 @@
 class AppConstants {
   // API Configuration
-  static const String apiUrl = 'https://nest-production-8106.up.railway.app/api';
+  static const String apiUrl = 'https://nest-production-8106.up.railway.app';
+  static const String aiBaseUrl = 'https://phgroup-ai-production.up.railway.app';
   
   // Storage Keys
   static const String tokenKey = 'token';

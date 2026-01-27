@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hotelapp_flutter/providers/auth_provider.dart';
 import 'package:hotelapp_flutter/screens/auth/login_screen.dart';
 import 'package:hotelapp_flutter/screens/auth/signup_screen.dart';
 import 'package:hotelapp_flutter/screens/auth/forgot_password_screen.dart';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hotelapp_flutter/providers/auth_provider.dart';
+import 'package:hotelapp_flutter/config/constants.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -33,85 +34,43 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildAuthenticatedView(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final role = authProvider.user?.role;
+    final isAdmin = role == AppConstants.roleAdmin || role == AppConstants.roleSuperadmin;
+    final isBusiness = role == AppConstants.roleBusiness;
+    final isHotel = role == AppConstants.roleHotel;
+    final isStaff = role == AppConstants.roleStaff;
+    final items = <Map<String, dynamic>>[];
+    if (isAdmin || isHotel || isStaff) {
+      items.add({'title': 'Quản lý phòng', 'icon': Icons.bed, 'route': '/admin/rooms'});
+    }
+    if (isAdmin || isBusiness) {
+      items.add({'title': 'Quản lý doanh nghiệp', 'icon': Icons.business, 'route': '/admin/business'});
+    }
+    if (isAdmin || isBusiness || isHotel) {
+      items.add({'title': 'Quản lý khách sạn', 'icon': Icons.hotel, 'route': '/admin/hotels'});
+    }
+    if (isAdmin || isBusiness || isHotel) {
+      items.add({'title': 'Quản lý nhân viên', 'icon': Icons.people, 'route': '/admin/staff'});
+    }
+    items.add({'title': 'Quản lý khách hàng', 'icon': Icons.person, 'route': '/admin/guests'});
+    items.add({'title': 'Quản lý dịch vụ', 'icon': Icons.room_service, 'route': '/admin/services'});
+    items.add({'title': 'Quản lý công nợ', 'icon': Icons.money_off, 'route': '/admin/debt'});
+    if (isAdmin || isHotel || isStaff) {
+      items.add({'title': 'Giao ca', 'icon': Icons.swap_horiz, 'route': '/admin/shift-handover'});
+    }
+    items.add({'title': 'Lịch', 'icon': Icons.calendar_today, 'route': '/admin/calendar'});
+    items.add({'title': 'Báo cáo tài chính', 'icon': Icons.assessment, 'route': '/admin/financial-summary'});
+    items.add({'title': 'Hồ sơ', 'icon': Icons.person, 'route': '/profile'});
+    items.add({'title': 'Cài đặt', 'icon': Icons.settings, 'route': '/settings'});
     return GridView.count(
       crossAxisCount: 2,
       padding: const EdgeInsets.all(16),
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      children: [
-        _buildMenuCard(
-          context,
-          'Quản lý phòng',
-          Icons.bed,
-          '/admin/rooms',
-        ),
-        _buildMenuCard(
-          context,
-          'Quản lý khách sạn',
-          Icons.hotel,
-          '/admin/hotels',
-        ),
-        _buildMenuCard(
-          context,
-          'Quản lý doanh nghiệp',
-          Icons.business,
-          '/admin/business',
-        ),
-        _buildMenuCard(
-          context,
-          'Quản lý nhân viên',
-          Icons.people,
-          '/admin/staff',
-        ),
-        _buildMenuCard(
-          context,
-          'Quản lý khách hàng',
-          Icons.person,
-          '/admin/guests',
-        ),
-        _buildMenuCard(
-          context,
-          'Quản lý dịch vụ',
-          Icons.room_service,
-          '/admin/services',
-        ),
-        _buildMenuCard(
-          context,
-          'Quản lý công nợ',
-          Icons.money_off,
-          '/admin/debt',
-        ),
-        _buildMenuCard(
-          context,
-          'Giao ca',
-          Icons.swap_horiz,
-          '/admin/shift-handover',
-        ),
-        _buildMenuCard(
-          context,
-          'Lịch',
-          Icons.calendar_today,
-          '/admin/calendar',
-        ),
-        _buildMenuCard(
-          context,
-          'Báo cáo tài chính',
-          Icons.assessment,
-          '/admin/financial-summary',
-        ),
-        _buildMenuCard(
-          context,
-          'Hồ sơ',
-          Icons.person,
-          '/profile',
-        ),
-        _buildMenuCard(
-          context,
-          'Cài đặt',
-          Icons.settings,
-          '/settings',
-        ),
-      ],
+      children: items
+          .map((e) => _buildMenuCard(context, e['title'] as String, e['icon'] as IconData, e['route'] as String))
+          .toList(),
     );
   }
 

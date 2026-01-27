@@ -108,11 +108,13 @@ class AuthService {
     }
   }
   
-  Future<Map<String, dynamic>> forgotPassword(String email) async {
+  Future<Map<String, dynamic>> forgotPassword(String emailOrUsername) async {
     try {
       final response = await _apiService.post(
         AppConstants.forgotPasswordEndpoint,
-        data: {'email': email},
+        data: emailOrUsername.contains('@')
+            ? {'email': emailOrUsername}
+            : {'username': emailOrUsername},
       );
       return response.data;
     } catch (e) {
