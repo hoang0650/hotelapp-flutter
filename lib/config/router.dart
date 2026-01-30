@@ -16,8 +16,14 @@ import 'package:hotelapp_flutter/screens/admin/shift_handover_history_screen.dar
 import 'package:hotelapp_flutter/screens/admin/calendar_screen.dart';
 import 'package:hotelapp_flutter/screens/admin/revenue_chart_screen.dart';
 import 'package:hotelapp_flutter/screens/admin/financial_summary_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/reports_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/invoices_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/payment_history_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/bank_transfer_history_screen.dart';
 import 'package:hotelapp_flutter/screens/profile/profile_screen.dart';
 import 'package:hotelapp_flutter/screens/settings/settings_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/management_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/electric_setting_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -50,6 +56,14 @@ class AppRouter {
       GoRoute(
         path: '/admin/rooms',
         builder: (context, state) => const RoomScreen(),
+      ),
+      GoRoute(
+        path: '/admin/management',
+        builder: (context, state) => const ManagementScreen(),
+      ),
+      GoRoute(
+        path: '/admin/electric',
+        builder: (context, state) => const ElectricSettingScreen(),
       ),
       GoRoute(
         path: '/admin/hotels',
@@ -90,6 +104,22 @@ class AppRouter {
       GoRoute(
         path: '/admin/revenue',
         builder: (context, state) => const RevenueChartScreen(),
+      ),
+      GoRoute(
+        path: '/admin/reports',
+        builder: (context, state) => const ReportsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/invoices',
+        builder: (context, state) => const InvoicesScreen(),
+      ),
+      GoRoute(
+        path: '/admin/payment-history',
+        builder: (context, state) => const PaymentHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/admin/bank-transfer-history',
+        builder: (context, state) => const BankTransferHistoryScreen(),
       ),
       GoRoute(
         path: '/admin/financial-summary',

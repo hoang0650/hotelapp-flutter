@@ -28,6 +28,9 @@ class AppConstants {
   static const String invoicesEndpoint = '/invoices';
   static const String debtEndpoint = '/debt';
   static const String financialSummaryEndpoint = '/financial-summary';
+  static const String sepayEndpoint = '/sepay';
+  static const String paypalEndpoint = '/paypal';
+  static const String cryptoEndpoint = '/crypto';
   static const String settingsEndpoint = '/settings';
   static const String contactsEndpoint = '/contacts';
   static const String blogsEndpoint = '/blog';

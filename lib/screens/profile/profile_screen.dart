@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hotelapp_flutter/providers/auth_provider.dart';
 import 'package:hotelapp_flutter/services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,6 +15,22 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _authService = AuthService();
   bool _saving = false;
+  String _themeMode = 'light';
+  String _language = 'vi';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _themeMode = prefs.getString('pref_theme') ?? 'light';
+      _language = prefs.getString('pref_language') ?? 'vi';
+    });
+  }
 
   Future<void> _editProfileDialog(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -90,61 +107,203 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hồ sơ'),
-        actions: [
-          if (user != null)
-            IconButton(
-              onPressed: () => _editProfileDialog(context),
-              icon: const Icon(Icons.edit),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Hồ sơ')),
       body: user == null
           ? const Center(child: Text('Không có thông tin người dùng'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
+          : Column(
               children: [
-                Card(
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
                     ),
-                    title: Text(user.username),
-                    subtitle: Text(user.email),
+                  ),
+                  child: Column(
+                    children: [
+                      const CircleAvatar(radius: 36, child: Icon(Icons.person, size: 36)),
+                      const SizedBox(height: 10),
+                      Text(
+                        user.fullName ?? user.username,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.email,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                ListTile(
-                  leading: const Icon(Icons.badge),
-                  title: const Text('Vai trò'),
-                  trailing: Text(user.role),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: const Text('Họ tên'),
-                  trailing: Text(user.fullName ?? '-'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.phone),
-                  title: const Text('Số điện thoại'),
-                  trailing: Text(user.phone ?? '-'),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.settings),
-                  title: const Text('Cài đặt'),
-                  onTap: () => context.push('/settings'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
-                  onTap: () async {
-                    await authProvider.logout();
-                    if (context.mounted) {
-                      context.go('/');
-                    }
-                  },
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 8),
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.person),
+                        title: const Text('Account'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _editProfileDialog(context),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.settings),
+                        title: const Text('Settings'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/settings'),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.palette),
+                        title: const Text('Change Theme'),
+                        trailing: Text(
+                          _themeMode == 'dark'
+                              ? 'Dark'
+                              : _themeMode == 'light'
+                                  ? 'Light'
+                                  : 'Auto',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        onTap: () async {
+                          final selected = await showModalBottomSheet<String>(
+                            context: context,
+                            builder: (context) {
+                              return SafeArea(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      title: const Text('Light'),
+                                      trailing: _themeMode == 'light' ? const Icon(Icons.check) : null,
+                                      onTap: () => Navigator.pop(context, 'light'),
+                                    ),
+                                    ListTile(
+                                      title: const Text('Dark'),
+                                      trailing: _themeMode == 'dark' ? const Icon(Icons.check) : null,
+                                      onTap: () => Navigator.pop(context, 'dark'),
+                                    ),
+                                    ListTile(
+                                      title: const Text('Auto'),
+                                      trailing: _themeMode == 'auto' ? const Icon(Icons.check) : null,
+                                      onTap: () => Navigator.pop(context, 'auto'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                          if (selected != null) {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setString('pref_theme', selected);
+                            setState(() => _themeMode = selected);
+                          }
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.language),
+                        title: const Text('Change Language'),
+                        trailing: Text(
+                          _language == 'vi' ? 'Tiếng Việt' : 'English',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        onTap: () async {
+                          final selected = await showModalBottomSheet<String>(
+                            context: context,
+                            builder: (context) {
+                              return SafeArea(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ListTile(
+                                      title: const Text('Tiếng Việt'),
+                                      trailing: _language == 'vi' ? const Icon(Icons.check) : null,
+                                      onTap: () => Navigator.pop(context, 'vi'),
+                                    ),
+                                    ListTile(
+                                      title: const Text('English'),
+                                      trailing: _language == 'en' ? const Icon(Icons.check) : null,
+                                      onTap: () => Navigator.pop(context, 'en'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                          if (selected != null) {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setString('pref_language', selected);
+                            setState(() => _language = selected);
+                          }
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.chat_bubble_outline),
+                        title: const Text('Support'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          showModalBottomSheet<void>(
+                            context: context,
+                            builder: (context) {
+                              return SafeArea(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: const [
+                                      Text('Liên hệ hỗ trợ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                      SizedBox(height: 12),
+                                      Text('Email: support@phhotel.com'),
+                                      SizedBox(height: 8),
+                                      Text('Hotline: +84 123 456 789'),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.call_outlined),
+                        title: const Text('Contact'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          showModalBottomSheet<void>(
+                            context: context,
+                            builder: (context) {
+                              return SafeArea(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: const [
+                                      Text('Email: contact@phhotel.com'),
+                                      SizedBox(height: 8),
+                                      Text('Phone: +84 123 456 789'),
+                                      SizedBox(height: 8),
+                                      Text('Website: https://phhotel.com'),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.red),
+                        title: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+                        onTap: () async {
+                          await authProvider.logout();
+                          if (context.mounted) {
+                            context.go('/');
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

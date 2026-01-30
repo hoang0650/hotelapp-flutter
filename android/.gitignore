@@ -12,3 +12,40 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Flutter
+build/
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.vscode/
+.idea/
+
+# iOS
+ios/Pods/
+ios/build/
+
+# Android
+android/.gradle/
+android/app/build/
+
+# Web
+web/build/
+
+# Tests và metadata
+test/
+.trae/
+
+# Media nặng
+*.mp4
+*.mov
+*.psd
+*.pdf
+*.zip
+*.aab
+*.apk
+*.ipa
