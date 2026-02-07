@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/services/rooms_service.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 import 'package:hotelapp_flutter/config/constants.dart';
 
 class RoomScreen extends StatefulWidget {
@@ -11,7 +13,8 @@ class RoomScreen extends StatefulWidget {
 }
 
 class _RoomScreenState extends State<RoomScreen> {
-  final _api = ApiService();
+  final _roomsService = RoomsService();
+  final _api = ApiService(); // Added for direct API calls if needed, replacing _hotelService
   List<dynamic> _items = [];
   List<dynamic> _filtered = [];
   bool _loading = true;
@@ -20,8 +23,9 @@ class _RoomScreenState extends State<RoomScreen> {
   String _statusFilter = 'all'; // all | vacant | occupied | cleaning | maintenance
   String? _floorFilter; // null = all floors
   final _currency = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ', decimalDigits: 0);
-  List<dynamic> _hotels = [];
-  String? _selectedHotelId;
+  
+  // Removed local hotel state
+  
   final _roomNumberController = TextEditingController();
   final _typeController = TextEditingController();
   final _floorController = TextEditingController();
@@ -49,19 +53,10 @@ class _RoomScreenState extends State<RoomScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      await _loadHotels();
-      final res = await _api.get(
-        AppConstants.roomsEndpoint,
-        queryParameters: _selectedHotelId != null ? {'hotelId': _selectedHotelId} : null,
-      );
-      final data = res.data;
-      if (data is List) {
-        _items = data;
-      } else if (data is Map && data['items'] is List) {
-        _items = data['items'];
-      } else {
-        _items = [];
-      }
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      final data = await _roomsService.getRooms(hotelId: hotelId);
+      _items = data;
       _applyFilter();
     } catch (e) {
       _items = [];
@@ -70,22 +65,7 @@ class _RoomScreenState extends State<RoomScreen> {
     }
   }
 
-  Future<void> _loadHotels() async {
-    try {
-      final res = await _api.get(AppConstants.hotelsEndpoint);
-      final data = res.data;
-      _hotels = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
-      if (_hotels.isNotEmpty && _selectedHotelId == null) {
-        _selectedHotelId = (_hotels.first as Map)['_id'];
-      }
-    } catch (_) {
-      _hotels = [];
-    }
-  }
+  // Removed _loadHotels
 
   void _applyFilter() {
     final q = _searchController.text.toLowerCase();
@@ -175,21 +155,6 @@ class _RoomScreenState extends State<RoomScreen> {
             : ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: _selectedHotelId,
-                    decoration: const InputDecoration(labelText: 'Khách sạn'),
-                    items: _hotels
-                        .map((h) => DropdownMenuItem<String>(
-                              value: (h as Map)['_id'],
-                              child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() => _selectedHotelId = v);
-                      _load();
-                    },
-                  ),
-                  const SizedBox(height: 12),
                   // Counters
                   _buildCounters(context),
                   const SizedBox(height: 12),
@@ -210,8 +175,14 @@ class _RoomScreenState extends State<RoomScreen> {
                       padding: EdgeInsets.all(24),
                       child: Text('Không có dữ liệu'),
                     )),
+                  const SizedBox(height: 80), // Space for FAB
                 ],
               ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openRoomForm(initial: null),
+        tooltip: 'Thêm phòng mới',
+        child: const Icon(Icons.add),
       ),
     );
   }

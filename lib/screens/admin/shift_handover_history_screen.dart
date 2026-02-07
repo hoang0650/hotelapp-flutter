@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:hotelapp_flutter/services/shift_handover_service.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class ShiftHandoverHistoryScreen extends StatefulWidget {
   const ShiftHandoverHistoryScreen({super.key});
@@ -10,7 +11,7 @@ class ShiftHandoverHistoryScreen extends StatefulWidget {
 }
 
 class _ShiftHandoverHistoryScreenState extends State<ShiftHandoverHistoryScreen> {
-  final _api = ApiService();
+  final _shiftHandoverService = ShiftHandoverService();
   List<dynamic> _items = [];
   bool _loading = true;
 
@@ -23,12 +24,16 @@ class _ShiftHandoverHistoryScreenState extends State<ShiftHandoverHistoryScreen>
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.get(AppConstants.shiftHandoverEndpoint);
-      final data = res.data;
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      
+      final data = await _shiftHandoverService.getShiftHandoverHistory(hotelId: hotelId);
+      
       if (data is List) {
         _items = data;
-      } else if (data is Map && data['items'] is List) {
-        _items = data['items'];
+      } else if (data is Map) {
+        // history endpoint often returns { items: [], meta: {} } or similar
+        _items = (data['items'] is List) ? data['items'] : [];
       } else {
         _items = [];
       }

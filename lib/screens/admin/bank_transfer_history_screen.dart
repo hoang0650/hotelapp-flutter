@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:hotelapp_flutter/services/bank_transfer_service.dart';
 
 class BankTransferHistoryScreen extends StatefulWidget {
   const BankTransferHistoryScreen({super.key});
@@ -11,7 +10,7 @@ class BankTransferHistoryScreen extends StatefulWidget {
 }
 
 class _BankTransferHistoryScreenState extends State<BankTransferHistoryScreen> {
-  final _api = ApiService();
+  final _bankTransferService = BankTransferService();
   bool _loading = true;
   bool _refreshing = false;
   List<dynamic> _transactions = [];
@@ -30,8 +29,7 @@ class _BankTransferHistoryScreenState extends State<BankTransferHistoryScreen> {
       _refreshing = true;
     });
     try {
-      final res = await _api.get('${AppConstants.sepayEndpoint}/transactions');
-      final data = res.data;
+      final data = await _bankTransferService.getSepayTransactions();
       _transactions = (data is List) ? data : (data is Map && data['transactions'] is List) ? data['transactions'] : [];
     } catch (_) {
       _transactions = [];

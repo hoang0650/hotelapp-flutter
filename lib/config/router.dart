@@ -24,6 +24,8 @@ import 'package:hotelapp_flutter/screens/profile/profile_screen.dart';
 import 'package:hotelapp_flutter/screens/settings/settings_screen.dart';
 import 'package:hotelapp_flutter/screens/admin/management_screen.dart';
 import 'package:hotelapp_flutter/screens/admin/electric_setting_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/ai_chatbox_screen.dart';
+import 'package:hotelapp_flutter/screens/admin/fanpage_messages_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -132,6 +134,14 @@ class AppRouter {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/chatbox',
+        builder: (context, state) => const AiChatboxScreen(),
+      ),
+      GoRoute(
+        path: '/admin/fanpage',
+        builder: (context, state) => const FanpageMessagesScreen(),
       ),
     ],
   );

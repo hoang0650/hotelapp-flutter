@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/services/service_service.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class ServiceManagementScreen extends StatefulWidget {
   const ServiceManagementScreen({super.key});
@@ -10,13 +11,11 @@ class ServiceManagementScreen extends StatefulWidget {
 }
 
 class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
-  final _api = ApiService();
+  final _serviceService = ServiceService();
   List<dynamic> _items = [];
   List<dynamic> _filtered = [];
   bool _loading = true;
   final _searchController = TextEditingController();
-  List<dynamic> _hotels = [];
-  String? _selectedHotelId;
   bool _saving = false;
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
@@ -41,19 +40,10 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      await _loadHotels();
-      final res = await _api.get(
-        AppConstants.servicesEndpoint,
-        queryParameters: _selectedHotelId != null ? {'hotelId': _selectedHotelId} : null,
-      );
-      final data = res.data;
-      if (data is List) {
-        _items = data;
-      } else if (data is Map && data['items'] is List) {
-        _items = data['items'];
-      } else {
-        _items = [];
-      }
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      final data = await _serviceService.getServices(hotelId: hotelId);
+      _items = data;
       _applyFilter();
     } catch (e) {
       _items = [];
@@ -62,22 +52,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
     }
   }
 
-  Future<void> _loadHotels() async {
-    try {
-      final res = await _api.get(AppConstants.hotelsEndpoint);
-      final data = res.data;
-      _hotels = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
-      if (_hotels.isNotEmpty && _selectedHotelId == null) {
-        _selectedHotelId = (_hotels.first as Map)['_id'];
-      }
-    } catch (_) {
-      _hotels = [];
-    }
-  }
+  // Removed _loadHotels
 
   void _applyFilter() {
     final q = _searchController.text.toLowerCase();
@@ -91,7 +66,7 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
 
   Future<void> _deleteService(String id) async {
     try {
-      await _api.delete('${AppConstants.servicesEndpoint}/$id');
+      await _serviceService.deleteService(id);
       await _load();
     } catch (_) {}
   }
@@ -105,24 +80,25 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
     }
     setState(() => _saving = true);
     try {
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
       if (initial == null) {
-        final res = await _api.post(AppConstants.servicesEndpoint, data: {
+        final created = await _serviceService.createService({
           'name': name,
           if (price != null) 'price': price,
           if (_categoryValue != null && _categoryValue!.isNotEmpty) 'category': _categoryValue,
           'active': _activeValue,
         });
-        final created = res.data is Map ? res.data as Map<String, dynamic> : null;
-        final createdId = created?['_id'] ?? created?['id'];
-        if (_selectedHotelId != null && createdId != null) {
-          await _api.post('${AppConstants.servicesEndpoint}/assign', data: {
-            'serviceId': createdId,
-            'hotelId': _selectedHotelId,
-          });
+        
+        final createdMap = created is Map ? created as Map<String, dynamic> : null;
+        final createdId = createdMap?['_id'] ?? createdMap?['id'];
+        
+        if (hotelId != null && createdId != null) {
+          await _serviceService.assignServiceToHotel(createdId, hotelId);
         }
       } else {
         final id = initial['_id'] ?? initial['id'];
-        await _api.put('${AppConstants.servicesEndpoint}/$id', data: {
+        await _serviceService.updateService(id, {
           'name': name,
           if (price != null) 'price': price,
           if (_categoryValue != null && _categoryValue!.isNotEmpty) 'category': _categoryValue,
@@ -205,21 +181,6 @@ class _ServiceManagementScreenState extends State<ServiceManagementScreen> {
             : ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: _selectedHotelId,
-                    decoration: const InputDecoration(labelText: 'Khách sạn'),
-                    items: _hotels
-                        .map((h) => DropdownMenuItem<String>(
-                              value: (h as Map)['_id'],
-                              child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() => _selectedHotelId = v);
-                      _load();
-                    },
-                  ),
-                  const SizedBox(height: 12),
                   TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(

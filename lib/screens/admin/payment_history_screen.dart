@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:hotelapp_flutter/services/bank_transfer_service.dart';
+import 'package:hotelapp_flutter/services/paypal_service.dart';
+import 'package:hotelapp_flutter/services/crypto_service.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
   const PaymentHistoryScreen({super.key});
@@ -11,7 +12,9 @@ class PaymentHistoryScreen extends StatefulWidget {
 }
 
 class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
-  final _api = ApiService();
+  final _bankTransferService = BankTransferService();
+  final _paypalService = PaypalService();
+  final _cryptoService = CryptoService();
   bool _loading = true;
   bool _refreshing = false;
   String _activeTab = 'all'; // all | sepay | paypal | crypto
@@ -35,13 +38,13 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     });
     try {
       final results = await Future.wait([
-        _api.get('${AppConstants.sepayEndpoint}/payment-history'),
-        _api.get('${AppConstants.paypalEndpoint}/payment-history'),
-        _api.get('${AppConstants.cryptoEndpoint}/payment-history'),
+        _bankTransferService.getSepayPaymentHistory(),
+        _paypalService.getPaymentHistory(),
+        _cryptoService.getPaymentHistory(),
       ]);
-      final sepayData = results[0].data;
-      final paypalData = results[1].data;
-      final cryptoData = results[2].data;
+      final sepayData = results[0];
+      final paypalData = results[1];
+      final cryptoData = results[2];
       _sepay = (sepayData is List) ? sepayData : (sepayData is Map && sepayData['data'] is List) ? sepayData['data'] : [];
       _paypal = (paypalData is List) ? paypalData : (paypalData is Map && paypalData['data'] is List) ? paypalData['data'] : [];
       _crypto = (cryptoData is List) ? cryptoData : (cryptoData is Map && cryptoData['data'] is List) ? cryptoData['data'] : [];

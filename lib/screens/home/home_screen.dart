@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:hotelapp_flutter/services/api_service.dart';
 import 'package:hotelapp_flutter/providers/auth_provider.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 import 'package:hotelapp_flutter/config/constants.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,11 +20,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _bottomIndex = 0;
   int _revenueTab = 1;
   int _roomSalesTab = 1;
-  String? _selectedHotelId;
-  String _selectedHotelName = 'Chọn khách sạn';
   final _api = ApiService();
   final _dateFmt = DateFormat('dd/MM/yyyy');
-  List<Map<String, dynamic>> _hotels = [];
+  
   int _vacant = 0;
   int _occupied = 0;
   int _booked = 0;
@@ -39,44 +38,32 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initHotelAndLoad();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initHotelAndLoad();
+    });
   }
 
   Future<void> _initHotelAndLoad() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final userHotelId = auth.user?.hotelId;
-    try {
-      final hotelsRes = await _api.get(AppConstants.hotelsEndpoint);
-      final hotelsData = hotelsRes.data;
-      if (hotelsData is List) {
-        _hotels = hotelsData.cast<Map<String, dynamic>>();
-      } else {
-        _hotels = [];
-      }
-    } catch (_) {
-      _hotels = [];
+    final hp = Provider.of<HotelProvider>(context, listen: false);
+    
+    // Check if hotels are already loaded to avoid reload if not needed, 
+    // or just reload to be safe. Let's reload to ensure fresh data.
+    await hp.loadHotels(userHotelId: auth.user?.hotelId);
+    
+    if (mounted) {
+      await _loadDashboardData();
     }
-    if (userHotelId != null && userHotelId.isNotEmpty) {
-      _selectedHotelId = userHotelId;
-      try {
-        final hRes = await _api.get('${AppConstants.hotelsEndpoint}/$userHotelId');
-        final hData = hRes.data;
-        if (hData is Map && hData['name'] is String) {
-          _selectedHotelName = hData['name'];
-        }
-      } catch (_) {}
-    } else if (_hotels.isNotEmpty) {
-      _selectedHotelId = '${_hotels.first['_id'] ?? _hotels.first['id'] ?? ''}';
-      _selectedHotelName = '${_hotels.first['name'] ?? 'Khách sạn'}';
-    }
-    if (mounted) setState(() {});
-    await _loadDashboardData();
   }
 
   Future<void> _loadDashboardData() async {
-    if (_selectedHotelId == null || _selectedHotelId!.isEmpty) return;
+    final hp = Provider.of<HotelProvider>(context, listen: false);
+    final selectedHotelId = hp.selectedHotelId;
+    
+    if (selectedHotelId == null || selectedHotelId.isEmpty) return;
+    
     try {
-      final roomsRes = await _api.get(AppConstants.roomsEndpoint, queryParameters: {'hotelId': _selectedHotelId});
+      final roomsRes = await _api.get(AppConstants.roomsEndpoint, queryParameters: {'hotelId': selectedHotelId});
       List rooms = [];
       if (roomsRes.data is List) {
         rooms = roomsRes.data as List;
@@ -102,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _occupied = 0;
     }
     try {
-      final bookingsRes = await _api.get('/rooms/bookings', queryParameters: {'hotelId': _selectedHotelId});
+      final bookingsRes = await _api.get('/rooms/bookings', queryParameters: {'hotelId': selectedHotelId});
       final bData = bookingsRes.data;
       List bookings = [];
       if (bData is Map && bData['bookings'] is List) {
@@ -130,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     try {
       final types = jsonEncode(['checkin', 'checkout', 'maintenance', 'transfer']);
-      final eventsRes = await _api.get('/rooms/events', queryParameters: {'hotelId': _selectedHotelId, 'limit': 5, 'types': types});
+      final eventsRes = await _api.get('/rooms/events', queryParameters: {'hotelId': selectedHotelId, 'limit': 5, 'types': types});
       if (eventsRes.data is List) {
         _roomEvents = (eventsRes.data as List).cast<Map<String, dynamic>>();
       } else {
@@ -145,10 +132,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadRevenueData() async {
-    if (_selectedHotelId == null || _selectedHotelId!.isEmpty) return;
+    final hp = Provider.of<HotelProvider>(context, listen: false);
+    final selectedHotelId = hp.selectedHotelId;
+    if (selectedHotelId == null || selectedHotelId.isEmpty) return;
+    
     final period = _revenueTab == 0 ? 'day' : _revenueTab == 1 ? 'week' : 'month';
     try {
-      final res = await _api.get('/shift-handover/revenue/period', queryParameters: {'hotelId': _selectedHotelId, 'period': period});
+      final res = await _api.get('/shift-handover/revenue/period', queryParameters: {'hotelId': selectedHotelId, 'period': period});
       final d = res.data is Map ? res.data as Map : {};
       final arr = (d['revenueData'] is List) ? (d['revenueData'] as List) : [];
       _revenueData = arr.map((e) => (e is num) ? e.toDouble() : double.tryParse('$e') ?? 0).toList();
@@ -163,10 +153,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadSalesData() async {
-    if (_selectedHotelId == null || _selectedHotelId!.isEmpty) return;
+    final hp = Provider.of<HotelProvider>(context, listen: false);
+    final selectedHotelId = hp.selectedHotelId;
+    if (selectedHotelId == null || selectedHotelId.isEmpty) return;
+    
     final period = _roomSalesTab == 0 ? 'day' : _roomSalesTab == 1 ? 'week' : 'month';
     try {
-      final res = await _api.get('/shift-handover/checkin-count/period', queryParameters: {'hotelId': _selectedHotelId, 'period': period});
+      final res = await _api.get('/shift-handover/checkin-count/period', queryParameters: {'hotelId': selectedHotelId, 'period': period});
       final d = res.data is Map ? res.data as Map : {};
       final arr = (d['checkinCountData'] is List) ? (d['checkinCountData'] as List) : [];
       _salesData = arr.map((e) => (e is num) ? e.toDouble() : double.tryParse('$e') ?? 0).toList();
@@ -235,6 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDashboard(BuildContext context) {
     final role = Provider.of<AuthProvider>(context, listen: false).user?.role;
+    final hp = Provider.of<HotelProvider>(context);
+    
     final isAdmin = role == AppConstants.roleAdmin || role == AppConstants.roleSuperadmin;
     final isBusiness = role == AppConstants.roleBusiness;
     final isHotel = role == AppConstants.roleHotel;
@@ -266,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_selectedHotelName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        Text(hp.selectedHotelName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         const Text('PHHotel PMS', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
@@ -277,19 +272,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       dropdownColor: Theme.of(context).colorScheme.primary,
-                      value: _selectedHotelId,
+                      value: hp.selectedHotelId,
                       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-                      items: _hotels.map((h) {
+                      items: hp.hotels.map((h) {
                         final id = '${h['_id'] ?? h['id'] ?? ''}';
                         final name = '${h['name'] ?? 'Khách sạn'}';
                         return DropdownMenuItem(value: id, child: Text(name, style: const TextStyle(color: Colors.white)));
                       }).toList(),
                       onChanged: (v) async {
                         if (v != null) {
-                          _selectedHotelId = v;
-                          final found = _hotels.firstWhere((e) => '${e['_id'] ?? e['id'] ?? ''}' == v, orElse: () => {});
-                          _selectedHotelName = found.isNotEmpty ? '${found['name'] ?? _selectedHotelName}' : _selectedHotelName;
-                          setState(() {});
+                          hp.selectHotel(v);
+                          // We reload data when user manually changes hotel
                           await _loadDashboardData();
                         }
                       },

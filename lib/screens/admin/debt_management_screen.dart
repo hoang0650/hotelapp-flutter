@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/services/debt_service.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class DebtManagementScreen extends StatefulWidget {
   const DebtManagementScreen({super.key});
@@ -10,12 +11,10 @@ class DebtManagementScreen extends StatefulWidget {
 }
 
 class _DebtManagementScreenState extends State<DebtManagementScreen> {
-  final _api = ApiService();
+  final _debtService = DebtService();
   List<dynamic> _items = [];
   List<dynamic> _filtered = [];
   bool _loading = true;
-  List<dynamic> _hotels = [];
-  String? _selectedHotelId;
   final _searchController = TextEditingController();
   final _debtorController = TextEditingController();
   final _amountController = TextEditingController();
@@ -33,12 +32,9 @@ class _DebtManagementScreenState extends State<DebtManagementScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      await _loadHotels();
-      final res = await _api.get(
-        AppConstants.debtEndpoint,
-        queryParameters: _selectedHotelId != null ? {'hotelId': _selectedHotelId} : null,
-      );
-      final data = res.data;
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      final data = await _debtService.getDebts(hotelId: hotelId);
       if (data is List) {
         _items = data;
       } else if (data is Map && data['items'] is List) {
@@ -51,23 +47,6 @@ class _DebtManagementScreenState extends State<DebtManagementScreen> {
       _items = [];
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _loadHotels() async {
-    try {
-      final res = await _api.get(AppConstants.hotelsEndpoint);
-      final data = res.data;
-      _hotels = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
-      if (_hotels.isNotEmpty && _selectedHotelId == null) {
-        _selectedHotelId = (_hotels.first as Map)['_id'];
-      }
-    } catch (_) {
-      _hotels = [];
     }
   }
 
@@ -93,7 +72,7 @@ class _DebtManagementScreenState extends State<DebtManagementScreen> {
 
   Future<void> _deleteDebt(String id) async {
     try {
-      await _api.delete('${AppConstants.debtEndpoint}/$id');
+      await _debtService.deleteDebt(id);
       await _load();
     } catch (_) {}
   }
@@ -108,18 +87,20 @@ class _DebtManagementScreenState extends State<DebtManagementScreen> {
     }
     setState(() => _saving = true);
     try {
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
       final payload = {
         'debtorName': debtor,
         'amount': amount,
         if (note.isNotEmpty) 'note': note,
         if (_statusValue != null && _statusValue!.isNotEmpty) 'status': _statusValue,
-        if (_selectedHotelId != null) 'hotelId': _selectedHotelId,
+        if (hotelId != null) 'hotelId': hotelId,
       };
       if (initial == null) {
-        await _api.post(AppConstants.debtEndpoint, data: payload);
+        await _debtService.createManualDebt(payload);
       } else {
         final id = initial['_id'] ?? initial['id'];
-        await _api.put('${AppConstants.debtEndpoint}/$id', data: payload);
+        await _debtService.updateDebt(id, payload);
       }
       Navigator.of(context).pop();
       await _load();
@@ -196,26 +177,12 @@ class _DebtManagementScreenState extends State<DebtManagementScreen> {
             : ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: _selectedHotelId,
-                    decoration: const InputDecoration(labelText: 'Khách sạn'),
-                    items: _hotels
-                        .map((h) => DropdownMenuItem<String>(
-                              value: (h as Map)['_id'],
-                              child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() => _selectedHotelId = v);
-                      _load();
-                    },
-                  ),
-                  const SizedBox(height: 12),
                   TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(
+                      labelText: 'Tìm kiếm',
                       prefixIcon: Icon(Icons.search),
-                      hintText: 'Tìm công nợ theo khách/trạng thái',
+                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 12),

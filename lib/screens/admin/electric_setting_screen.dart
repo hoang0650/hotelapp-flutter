@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/services/tuya_service.dart';
+import 'package:hotelapp_flutter/services/rooms_service.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class ElectricSettingScreen extends StatefulWidget {
   const ElectricSettingScreen({super.key});
@@ -10,13 +12,12 @@ class ElectricSettingScreen extends StatefulWidget {
 }
 
 class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
-  final _api = ApiService();
+  final _tuyaService = TuyaService();
+  final _roomsService = RoomsService();
   bool _loading = true;
   bool _refreshing = false;
   List<dynamic> _devices = [];
-  List<dynamic> _hotels = [];
   List<dynamic> _rooms = [];
-  String? _selectedHotelId;
   String? _selectedRoomId;
   bool _saving = false;
   final _deviceIdController = TextEditingController();
@@ -38,30 +39,17 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
   Future<void> _loadInitial() async {
     setState(() => _loading = true);
     try {
-      await Future.wait([_loadHotels(), _loadDevices()]);
+      await Future.wait([_loadRoomsByHotel(), _loadDevices()]);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _loadHotels() async {
-    try {
-      final res = await _api.get(AppConstants.hotelsEndpoint);
-      final data = res.data;
-      _hotels = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
-      if (_hotels.isNotEmpty && _selectedHotelId == null) {
-        _selectedHotelId = (_hotels.first as Map)['-_id'] ?? (_hotels.first as Map)['_id'];
-      }
-      await _loadRoomsByHotel();
-    } catch (_) {}
-  }
-
   Future<void> _loadRoomsByHotel() async {
-    if (_selectedHotelId == null || _selectedHotelId!.isEmpty) {
+    final hp = Provider.of<HotelProvider>(context, listen: false);
+    final hotelId = hp.selectedHotelId;
+    
+    if (hotelId == null || hotelId.isEmpty) {
       setState(() {
         _rooms = [];
         _selectedRoomId = null;
@@ -69,13 +57,8 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
       return;
     }
     try {
-      final res = await _api.get(AppConstants.roomsEndpoint, queryParameters: {'hotelId': _selectedHotelId});
-      final data = res.data;
-      _rooms = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
+      final data = await _roomsService.getRooms(hotelId: hotelId);
+      _rooms = data;
     } catch (_) {
       _rooms = [];
     }
@@ -84,13 +67,7 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
 
   Future<void> _loadDevices() async {
     try {
-      final res = await _api.get('/tuya/devices');
-      final data = res.data;
-      _devices = (data is List)
-          ? data
-          : (data is Map && data['data'] is List)
-              ? data['data']
-              : [];
+      _devices = await _tuyaService.getDevices();
     } catch (_) {
       _devices = [];
     }
@@ -108,7 +85,7 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
 
   Future<void> _toggleDevice(String deviceId) async {
     try {
-      await _api.post('/tuya/devices/$deviceId/toggle');
+      await _tuyaService.toggle(deviceId);
       await _loadDevices();
     } catch (_) {}
   }
@@ -122,17 +99,22 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
     }
     setState(() => _saving = true);
     try {
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      
       final room = _rooms.firstWhere(
         (r) => (r as Map)['_id'] == _selectedRoomId,
         orElse: () => {},
       ) as Map<String, dynamic>?;
-      await _api.post('/tuya/devices', data: {
+      
+      await _tuyaService.addDevice({
         'deviceId': deviceId,
         'name': name,
-        'hotelId': _selectedHotelId,
+        'hotelId': hotelId,
         'roomId': _selectedRoomId,
         'roomNumber': room?['roomNumber'],
       });
+
       if (mounted) Navigator.pop(context);
       await _loadDevices();
     } catch (_) {
@@ -159,26 +141,6 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedHotelId,
-                    decoration: const InputDecoration(labelText: 'Khách sạn'),
-                    items: _hotels
-                        .map((h) => DropdownMenuItem<String>(
-                              value: (h as Map)['_id'],
-                              child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() {
-                        _selectedHotelId = v;
-                        _selectedRoomId = null;
-                      });
-                      _loadRoomsByHotel();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _selectedRoomId,
@@ -287,24 +249,6 @@ class _ElectricSettingScreenState extends State<ElectricSettingScreen> {
                   TextField(
                     controller: _deviceNameController,
                     decoration: const InputDecoration(labelText: 'Tên thiết bị *'),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: _selectedHotelId,
-                    decoration: const InputDecoration(labelText: 'Khách sạn'),
-                    items: _hotels
-                        .map((h) => DropdownMenuItem<String>(
-                              value: (h as Map)['_id'],
-                              child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() {
-                        _selectedHotelId = v;
-                        _selectedRoomId = null;
-                      });
-                      _loadRoomsByHotel();
-                    },
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(

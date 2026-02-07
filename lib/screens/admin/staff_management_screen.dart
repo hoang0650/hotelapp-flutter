@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:hotelapp_flutter/services/staff_service.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class StaffManagementScreen extends StatefulWidget {
   const StaffManagementScreen({super.key});
@@ -10,13 +10,11 @@ class StaffManagementScreen extends StatefulWidget {
 }
 
 class _StaffManagementScreenState extends State<StaffManagementScreen> {
-  final _api = ApiService();
+  final _staffService = StaffService();
   List<dynamic> _items = [];
   List<dynamic> _filtered = [];
   bool _loading = true;
   final _searchController = TextEditingController();
-  List<dynamic> _hotels = [];
-  String? _selectedHotelId;
   final _fullNameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -44,41 +42,17 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      await _loadHotels();
-      final path = _selectedHotelId != null && _selectedHotelId!.isNotEmpty
-          ? '${AppConstants.staffsEndpoint}/hotel/${_selectedHotelId}'
-          : AppConstants.staffsEndpoint;
-      final res = await _api.get(path);
-      final data = res.data;
-      if (data is List) {
-        _items = data;
-      } else if (data is Map && data['items'] is List) {
-        _items = data['items'];
-      } else {
-        _items = [];
-      }
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      final data = hotelId != null && hotelId.isNotEmpty
+          ? await _staffService.getStaffByHotel(hotelId)
+          : await _staffService.getStaff();
+      _items = data;
       _applyFilter();
     } catch (e) {
       _items = [];
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _loadHotels() async {
-    try {
-      final res = await _api.get(AppConstants.hotelsEndpoint);
-      final data = res.data;
-      _hotels = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
-      if (_hotels.isNotEmpty && _selectedHotelId == null) {
-        _selectedHotelId = (_hotels.first as Map)['_id'];
-      }
-    } catch (_) {
-      _hotels = [];
     }
   }
 
@@ -95,7 +69,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
 
   Future<void> _deleteStaff(String id) async {
     try {
-      await _api.delete('${AppConstants.staffsEndpoint}/$id');
+      await _staffService.deleteStaff(id);
       await _load();
     } catch (_) {}
   }
@@ -120,10 +94,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
         if (_selectedHotelId != null) 'hotelId': _selectedHotelId,
       };
       if (initial == null) {
-        await _api.post(AppConstants.staffsEndpoint, data: payload);
+        await _staffService.createStaff(payload);
       } else {
         final id = initial['_id'] ?? initial['id'];
-        await _api.put('${AppConstants.staffsEndpoint}/$id', data: payload);
+        await _staffService.updateStaff(id, payload);
       }
       Navigator.of(context).pop();
       await _load();
@@ -199,9 +173,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     final id = staff['_id'] ?? staff['id'];
     if (id == null) return;
     try {
-      final res = await _api.post('${AppConstants.staffsEndpoint}/$id/calculate-salary');
-      final data = res.data is Map ? res.data as Map<String, dynamic> : {};
-      final total = data['total'] ?? data['amount'] ?? 0;
+      final data = await _staffService.calculateSalary(id, {});
+      final total = data is Map ? (data['total'] ?? data['amount'] ?? 0) : 0;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -211,7 +184,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Đóng')),
             ElevatedButton(
               onPressed: () async {
-                await _api.post('${AppConstants.staffsEndpoint}/$id/pay-salary');
+                await _staffService.paySalary(id, {
+                  'calculationDate': DateTime.now().toIso8601String(),
+                  'baseDate': DateTime.now().toIso8601String(), // Assuming baseDate is required
+                });
                 Navigator.of(ctx).pop();
               },
               child: const Text('Thanh toán'),
@@ -233,21 +209,6 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             : ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: _selectedHotelId,
-                    decoration: const InputDecoration(labelText: 'Khách sạn'),
-                    items: _hotels
-                        .map((h) => DropdownMenuItem<String>(
-                              value: (h as Map)['_id'],
-                              child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                            ))
-                        .toList(),
-                    onChanged: (v) {
-                      setState(() => _selectedHotelId = v);
-                      _load();
-                    },
-                  ),
-                  const SizedBox(height: 12),
                   TextField(
                     controller: _searchController,
                     decoration: const InputDecoration(

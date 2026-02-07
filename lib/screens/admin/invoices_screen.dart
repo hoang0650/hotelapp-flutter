@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:hotelapp_flutter/services/invoice_service.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
@@ -11,14 +12,13 @@ class InvoicesScreen extends StatefulWidget {
 }
 
 class _InvoicesScreenState extends State<InvoicesScreen> {
-  final _api = ApiService();
+  final _invoiceService = InvoiceService();
   final _currency = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ', decimalDigits: 0);
   bool _loading = true;
   List<dynamic> _invoices = [];
   int _page = 1;
   final int _pageSize = 20;
   int _totalPages = 1;
-  String? _hotelId;
   String? _statusFilter; // paid | pending | cancelled | failed | null
 
   @override
@@ -30,16 +30,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   Future<void> _loadInvoices() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.get(
-        AppConstants.invoicesEndpoint,
-        queryParameters: {
-          if (_hotelId != null && _hotelId!.isNotEmpty) 'hotelId': _hotelId,
-          if (_statusFilter != null && _statusFilter!.isNotEmpty) 'status': _statusFilter,
-          'page': _page,
-          'limit': _pageSize,
-        },
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final data = await _invoiceService.getInvoices(
+        hotelId: hp.selectedHotelId,
+        status: _statusFilter,
+        page: _page,
+        limit: _pageSize,
       );
-      final data = res.data;
+      
       if (data is Map<String, dynamic>) {
         final items = data['invoices'];
         final pagination = data['pagination'];

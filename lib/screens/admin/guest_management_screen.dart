@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/services/guests_service.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class GuestManagementScreen extends StatefulWidget {
   const GuestManagementScreen({super.key});
@@ -10,13 +11,11 @@ class GuestManagementScreen extends StatefulWidget {
 }
 
 class _GuestManagementScreenState extends State<GuestManagementScreen> {
-  final _api = ApiService();
+  final _guestsService = GuestsService();
   List<dynamic> _items = [];
   List<dynamic> _filtered = [];
   bool _loading = true;
   final _searchController = TextEditingController();
-  List<dynamic> _hotels = [];
-  String? _selectedHotelId;
   String? _selectedGuestType; // regular | frequent | group | null (tất cả)
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -44,19 +43,19 @@ class _GuestManagementScreenState extends State<GuestManagementScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      await _loadHotels();
-      final res = await _api.get(
-        AppConstants.guestsEndpoint,
-        queryParameters: {
-          if (_selectedHotelId != null) 'hotelId': _selectedHotelId,
-          if (_selectedGuestType != null && _selectedGuestType!.isNotEmpty) 'guestType': _selectedGuestType,
-        },
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final hotelId = hp.selectedHotelId;
+      final data = await _guestsService.getGuests(
+        hotelId: hotelId,
+        guestType: _selectedGuestType?.isNotEmpty == true ? _selectedGuestType : null,
       );
-      final data = res.data;
-      if (data is List) {
-        _items = data;
-      } else if (data is Map && data['items'] is List) {
+      
+      if (data.containsKey('guests') && data['guests'] is List) {
+        _items = data['guests'];
+      } else if (data.containsKey('items') && data['items'] is List) {
         _items = data['items'];
+      } else if (data is List) {
+        _items = data as List;
       } else {
         _items = [];
       }
@@ -68,22 +67,7 @@ class _GuestManagementScreenState extends State<GuestManagementScreen> {
     }
   }
 
-  Future<void> _loadHotels() async {
-    try {
-      final res = await _api.get(AppConstants.hotelsEndpoint);
-      final data = res.data;
-      _hotels = (data is List)
-          ? data
-          : (data is Map && data['items'] is List)
-              ? data['items']
-              : [];
-      if (_hotels.isNotEmpty && _selectedHotelId == null) {
-        _selectedHotelId = (_hotels.first as Map)['_id'];
-      }
-    } catch (_) {
-      _hotels = [];
-    }
-  }
+  // Removed _loadHotels
 
   void _applyFilter() {
     final q = _searchController.text.toLowerCase();
@@ -98,7 +82,7 @@ class _GuestManagementScreenState extends State<GuestManagementScreen> {
 
   Future<void> _deleteGuest(String id) async {
     try {
-      await _api.delete('${AppConstants.guestsEndpoint}/$id');
+      await _guestsService.deleteGuest(id);
       await _load();
     } catch (_) {}
   }
@@ -119,13 +103,13 @@ class _GuestManagementScreenState extends State<GuestManagementScreen> {
         if (phone.isNotEmpty) 'phone': phone,
         if (_guestTypeValue != null && _guestTypeValue!.isNotEmpty) 'guestType': _guestTypeValue,
         if (_statusValue != null && _statusValue!.isNotEmpty) 'status': _statusValue,
-        if (_selectedHotelId != null) 'hotelId': _selectedHotelId,
+        'hotelId': Provider.of<HotelProvider>(context, listen: false).selectedHotelId,
       };
       if (initial == null) {
-        await _api.post(AppConstants.guestsEndpoint, data: payload);
+        await _guestsService.createGuest(payload);
       } else {
         final id = initial['_id'] ?? initial['id'];
-        await _api.put('${AppConstants.guestsEndpoint}/$id', data: payload);
+        await _guestsService.updateGuest(id, payload);
       }
       Navigator.of(context).pop();
       await _load();
@@ -216,23 +200,6 @@ class _GuestManagementScreenState extends State<GuestManagementScreen> {
                 children: [
                   Row(
                     children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedHotelId,
-                          decoration: const InputDecoration(labelText: 'Khách sạn'),
-                          items: _hotels
-                              .map((h) => DropdownMenuItem<String>(
-                                    value: (h as Map)['_id'],
-                                    child: Text('${(h as Map)['name'] ?? 'N/A'}'),
-                                  ))
-                              .toList(),
-                          onChanged: (v) {
-                            setState(() => _selectedHotelId = v);
-                            _load();
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           value: _selectedGuestType,

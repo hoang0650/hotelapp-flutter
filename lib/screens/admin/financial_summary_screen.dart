@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hotelapp_flutter/services/api_service.dart';
-import 'package:hotelapp_flutter/config/constants.dart';
+import 'package:hotelapp_flutter/services/financial_summary_service.dart';
+import 'package:provider/provider.dart';
+import 'package:hotelapp_flutter/providers/hotel_provider.dart';
 
 class FinancialSummaryScreen extends StatefulWidget {
   const FinancialSummaryScreen({super.key});
@@ -10,7 +11,7 @@ class FinancialSummaryScreen extends StatefulWidget {
 }
 
 class _FinancialSummaryScreenState extends State<FinancialSummaryScreen> {
-  final _api = ApiService();
+  final _financialSummaryService = FinancialSummaryService();
   Map<String, dynamic>? _summary;
   bool _loading = true;
 
@@ -23,10 +24,11 @@ class _FinancialSummaryScreenState extends State<FinancialSummaryScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final res = await _api.get(AppConstants.financialSummaryEndpoint);
-      final data = res.data;
+      final hp = Provider.of<HotelProvider>(context, listen: false);
+      final data = await _financialSummaryService.getFinancialSummary(hotelId: hp.selectedHotelId);
       if (data is Map<String, dynamic>) {
-        _summary = data;
+        // Data might be wrapped in a message/data structure or direct
+        _summary = data['data'] ?? data;
       } else {
         _summary = null;
       }
